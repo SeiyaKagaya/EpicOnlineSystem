@@ -1,14 +1,13 @@
 ﻿//------------------------------------------------------------
 // @file        main.cpp
-// @brief       EpicGamesのオンラインSDKを使用した通信システム
 //------------------------------------------------------------
 #include "main.h"
 #include "EOSManager.h"
+#include <thread>
+#include <chrono>
+#include <limits>
+#include <iostream>
 
-
-//----------------------------------------------
-// メイン
-//----------------------------------------------
 int main()
 {
     EOSManager eos("CityCleaners", "0.1a");
@@ -24,37 +23,65 @@ int main()
     std::cout << "Connect匿名ログイン試行中\n";
     eos.AnonymousConnectLogin();
 
-    // メインループ
-    while (true)
+    // ログイン待ち
+    while (!eos.IsLoggedIn())
     {
         eos.Tick();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    std::cout << "ログイン完了！\n";
 
-    // Lobby作成/検索やP2P通信はこの後に続ける
-    getchar();
-    getchar();
-    getchar();
+    if (game.isHost)
+    {
+        std::string roomName;
+        int maxPlayers;
+        std::cout << "部屋名を入力してください: ";
+        std::getline(std::cin, roomName);
+        std::cout << "最大人数を入力してください: ";
+        std::cin >> maxPlayers;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+        eos.CreateLobbyWithCleanup(roomName, maxPlayers, game.username);
+
+        // ロビー作成完了待ち
+        while (!eos.IsLobbyCreated())
+        {
+            eos.Tick();
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+    else
+    {
+        eos.SearchLobbies();
+
+        // 検索完了待ち
+        while (!eos.IsLobbySearchComplete())
+        {
+            eos.Tick();
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+
+    std::cout << "処理完了！Enterキーで終了...\n";
+    std::cin.get();
     return 0;
 }
 
-//初回プロセス
+// 初回プロセス
 GameContext InitUser()
 {
     GameContext context;
 
-    // ユーザー名入力
     std::cout << "ユーザー名を入力してください: ";
     std::getline(std::cin, context.username);
 
-    // ホスト/クライアント選択 (y/n)
     char choice = '\0';
     while (choice != 'Y' && choice != 'N')
     {
         std::cout << "ホストにする場合は 'y'、クライアントにする場合は 'n' を入力してください: ";
         std::cin >> choice;
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // バッファクリア
-        choice = std::toupper(choice); // 大文字化
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        choice = std::toupper(choice);
     }
 
     context.isHost = (choice == 'Y');

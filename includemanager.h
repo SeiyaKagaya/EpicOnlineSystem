@@ -18,9 +18,11 @@
 //#include "eos_sdk.h"
 #include <eos_auth.h>
 #include <eos_sdk.h>
-
-
-
+#include "eos_lobby.h"
+#include "eos_lobby_types.h"
+#include "eos_common.h"
+//#include "eos_lobby_details.h"
+//#include "eos_lobby_search.h"
 
 #include <DirectXMath.h>
 using namespace DirectX;

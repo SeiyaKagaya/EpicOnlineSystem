@@ -1,13 +1,11 @@
 ﻿//------------------------------------------------------------
 // @file        EOSManager.h
-// @brief       
 //------------------------------------------------------------
 #ifndef _EOSMANAGER_H_
 #define _EOSMANAGER_H_
 
 #include "includemanager.h"
-
-
+#include <string>
 
 class EOSManager
 {
@@ -17,20 +15,41 @@ public:
 
     bool Initialize();
     void Tick();
+    void AnonymousConnectLogin();
+    void SearchLobbies();
+    void CreateLobby(const std::string& roomName, int maxPlayers, const std::string& hostName);
+    void CreateLobbyWithCleanup(const std::string& roomName, int maxPlayers, const std::string& hostName);
 
-    void AnonymousConnectLogin(); // ← 匿名ログイン入口
+    bool IsLoggedIn() const { return m_bLoggedIn; }
+    bool IsLobbyCreated() const { return m_bLobbyCreated; }
+    bool IsLobbySearchComplete() const { return m_bLobbySearchComplete; }
 
 private:
-    void LoginWithDeviceID();     // ← 内部処理
+    void LoginWithDeviceID();
+
+    std::string m_PendingRoomName;
+    int m_PendingMaxPlayers;
+    std::string m_PendingHostName;
 
     std::string m_ProductName;
     std::string m_ProductVersion;
 
     EOS_HPlatform m_Platform;
     EOS_HConnect m_ConnectHandle;
+    EOS_HLobby m_LobbyHandle;
+    EOS_ProductUserId m_LocalUserId;
+
+    bool m_bLoggedIn = false;
+    bool m_bLobbyCreated = false;
+    bool m_bLobbySearchComplete = false;
+    EOS_HLobbySearch m_SearchHandle = nullptr;
+
+    static void EOS_CALL OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_FindCallbackInfo* data);
+    static void EOS_CALL OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data);
 };
 
 #endif
+
 
 
 

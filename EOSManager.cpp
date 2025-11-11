@@ -1,21 +1,22 @@
 ﻿//------------------------------------------------------------
 // @file        EOSManager.cpp
-// @brief       EOS SDK 管理クラス（最新版対応・DeviceID匿名ログイン対応）
 //------------------------------------------------------------
 #include "EOSManager.h"
+#include <iostream>
+#include <thread>
+#include <cstring>
+#include <cctype>
 
 EOSManager::EOSManager(const char* productName, const char* productVersion)
     : m_ProductName(productName), m_ProductVersion(productVersion),
-    m_Platform(nullptr), m_ConnectHandle(nullptr)
+    m_Platform(nullptr), m_ConnectHandle(nullptr),
+    m_LobbyHandle(nullptr), m_SearchHandle(nullptr)
 {}
 
 EOSManager::~EOSManager()
 {
     if (m_Platform)
-    {
         EOS_Platform_Release(m_Platform);
-        m_Platform = nullptr;
-    }
     EOS_Shutdown();
 }
 
@@ -26,14 +27,11 @@ bool EOSManager::Initialize()
     options.ProductName = m_ProductName.c_str();
     options.ProductVersion = m_ProductVersion.c_str();
 
-    EOS_EResult result = EOS_Initialize(&options);
-    if (result != EOS_EResult::EOS_Success)
+    if (EOS_Initialize(&options) != EOS_EResult::EOS_Success)
     {
-        std::cout << "EOS SDK 初期化失敗: " << (int)result << "\n";
+        std::cout << "EOS SDK 初期化失敗\n";
         return false;
     }
-
-    std::cout << "EOS SDK 初期化成功\n";
 
     EOS_Platform_Options platformOptions{};
     platformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
@@ -52,6 +50,8 @@ bool EOSManager::Initialize()
     }
 
     m_ConnectHandle = EOS_Platform_GetConnectInterface(m_Platform);
+    m_LobbyHandle = EOS_Platform_GetLobbyInterface(m_Platform);
+
     return true;
 }
 
@@ -61,14 +61,11 @@ void EOSManager::Tick()
         EOS_Platform_Tick(m_Platform);
 }
 
-//---------------------------------------------
-// 匿名ログイン(DeviceID)対応
-//---------------------------------------------
+// 匿名ログイン
 void EOSManager::AnonymousConnectLogin()
 {
     if (!m_ConnectHandle) return;
 
-    // Step 1: デバイスID作成（既に存在する場合もOK）
     EOS_Connect_CreateDeviceIdOptions createOptions{};
     createOptions.ApiVersion = EOS_CONNECT_CREATEDEVICEID_API_LATEST;
     createOptions.DeviceModel = "WindowsPC";
@@ -84,15 +81,11 @@ void EOSManager::AnonymousConnectLogin()
                 self->LoginWithDeviceID();
             }
             else
-            {
                 std::cout << "DeviceID作成失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
-            }
         });
 }
 
-//---------------------------------------------
-// DeviceIDログイン本体
-//---------------------------------------------
+// DeviceIDログイン
 void EOSManager::LoginWithDeviceID()
 {
     EOS_Connect_Credentials creds{};
@@ -102,28 +95,142 @@ void EOSManager::LoginWithDeviceID()
 
     EOS_Connect_UserLoginInfo userLoginInfo{};
     userLoginInfo.ApiVersion = EOS_CONNECT_USERLOGININFO_API_LATEST;
-    userLoginInfo.DisplayName = "LocalUser"; // ← 任意（ユーザー名でもOK）
+    userLoginInfo.DisplayName = "LocalUser";
 
     EOS_Connect_LoginOptions loginOptions{};
     loginOptions.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
     loginOptions.Credentials = &creds;
-    loginOptions.UserLoginInfo = &userLoginInfo; // ← ★追加必須！
+    loginOptions.UserLoginInfo = &userLoginInfo;
 
-    EOS_Connect_Login(m_ConnectHandle, &loginOptions, nullptr,
+    EOS_Connect_Login(m_ConnectHandle, &loginOptions, this,
         [](const EOS_Connect_LoginCallbackInfo* data)
         {
+            EOSManager* self = static_cast<EOSManager*>(data->ClientData);
+            if (!self) return;
+
             if (data->ResultCode == EOS_EResult::EOS_Success)
             {
+                self->m_LocalUserId = data->LocalUserId;
+                self->m_bLoggedIn = true;
+
                 char buffer[64]{};
-                int32_t bufLen = sizeof(buffer);
-                EOS_ProductUserId_ToString(data->LocalUserId, buffer, &bufLen);
+                int32_t len = sizeof(buffer);
+                EOS_ProductUserId_ToString(data->LocalUserId, buffer, &len);
                 std::cout << "Connect DeviceIDログイン成功: UserID=" << buffer << "\n";
             }
             else
-            {
-                std::cout << "Connect DeviceIDログイン失敗: "
-                    << EOS_EResult_ToString(data->ResultCode) << "\n";
-            }
+                std::cout << "Connect DeviceIDログイン失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
         });
 }
 
+// ロビー作成
+void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlayers, const std::string& hostName)
+{
+    if (!m_LobbyHandle) return;
+
+    m_PendingRoomName = roomName;
+    m_PendingMaxPlayers = maxPlayers;
+    m_PendingHostName = hostName;
+
+    EOS_Lobby_CreateLobbyOptions opts{};
+    opts.ApiVersion = EOS_LOBBY_CREATELOBBY_API_LATEST;
+    opts.LocalUserId = m_LocalUserId;
+    opts.MaxLobbyMembers = maxPlayers;
+    opts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
+    opts.bPresenceEnabled = EOS_TRUE;
+    opts.bAllowInvites = EOS_TRUE;
+    opts.BucketId = "default";
+
+    EOS_Lobby_CreateLobby(m_LobbyHandle, &opts, this, OnCreateLobbyCompleteStatic);
+    std::cout << "ロビー作成要求送信\n";
+}
+
+void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data)
+{
+    EOSManager* self = static_cast<EOSManager*>(data->ClientData);
+    if (!self) return;
+
+    if (data->ResultCode == EOS_EResult::EOS_Success)
+    {
+        std::cout << "ロビー作成成功！ LobbyId = " << data->LobbyId << "\n";
+        self->m_bLobbyCreated = true;
+    }
+    else
+        std::cout << "ロビー作成失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
+}
+
+// ロビー検索
+void EOSManager::SearchLobbies()
+{
+    if (!m_LobbyHandle) return;
+
+    EOS_Lobby_CreateLobbySearchOptions opts{};
+    opts.ApiVersion = EOS_LOBBY_CREATELOBBYSEARCH_API_LATEST;
+    opts.MaxResults = 20;
+
+    EOS_HLobbySearch searchHandle = nullptr;
+    if (EOS_Lobby_CreateLobbySearch(m_LobbyHandle, &opts, &searchHandle) != EOS_EResult::EOS_Success || !searchHandle)
+    {
+        std::cout << "ロビー検索作成失敗\n";
+        return;
+    }
+
+    m_SearchHandle = searchHandle;
+
+    EOS_LobbySearch_FindOptions findOpts{};
+    findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
+    findOpts.LocalUserId = m_LocalUserId;
+
+    EOS_LobbySearch_Find(m_SearchHandle, &findOpts, this, OnLobbySearchFindCompleteStatic);
+
+    std::cout << "ロビー検索要求送信中\n";
+}
+
+void EOS_CALL EOSManager::OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_FindCallbackInfo* data)
+{
+    EOSManager* self = static_cast<EOSManager*>(data->ClientData);
+    if (!self) return;
+
+    if (data->ResultCode != EOS_EResult::EOS_Success)
+    {
+        std::cout << "ロビー検索失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
+        self->m_bLobbySearchComplete = true;
+        return;
+    }
+
+    EOS_HLobbySearch searchHandle = self->m_SearchHandle;
+    if (!searchHandle)
+    {
+        std::cout << "検索ハンドルが無効です\n";
+        self->m_bLobbySearchComplete = true;
+        return;
+    }
+
+    uint32_t count = EOS_LobbySearch_GetSearchResultCount(searchHandle, nullptr);
+    std::cout << "ロビー検索完了: " << count << " 件\n";
+
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        EOS_HLobbyDetails details = nullptr;
+        EOS_LobbySearch_CopySearchResultByIndexOptions copyOpts{};
+        copyOpts.ApiVersion = EOS_LOBBYSEARCH_COPYSEARCHRESULTBYINDEX_API_LATEST;
+        copyOpts.LobbyIndex = i;
+
+        if (EOS_LobbySearch_CopySearchResultByIndex(searchHandle, &copyOpts, &details) != EOS_EResult::EOS_Success || !details)
+            continue;
+
+        EOS_LobbyDetails_Info* info = nullptr;
+        EOS_LobbyDetails_CopyInfoOptions infoOpts{};
+        infoOpts.ApiVersion = EOS_LOBBYDETAILS_COPYINFO_API_LATEST;
+
+        if (EOS_LobbyDetails_CopyInfo(details, &infoOpts, &info) == EOS_EResult::EOS_Success && info)
+        {
+            std::cout << "ロビー名: " << info->LobbyId << "\n";
+            EOS_LobbyDetails_Info_Release(info);
+        }
+
+        EOS_LobbyDetails_Release(details);
+    }
+
+    self->m_bLobbySearchComplete = true;
+}
