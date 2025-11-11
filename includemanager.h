@@ -6,12 +6,30 @@
 #define _INCLUDE_MANAGE_H_
 
 
+#define NOMINMAX   // Windows.h ‚Ì max/min ƒ}ƒNƒ‚ğ–³Œø‰»
 #include <windows.h>
+#include <cctype>   // toupper —p
+
+#include <string>
+#include <iostream>
+#include <thread>
+
+
+//#include "eos_sdk.h"
+#include <eos_auth.h>
+#include <eos_sdk.h>
+
+
+
 
 #include <DirectXMath.h>
 using namespace DirectX;
 
 
+struct GameContext {
+    std::string username;
+    bool isHost = false;
+};
 
 
 // 

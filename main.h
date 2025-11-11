@@ -9,4 +9,6 @@
 
 
 
+GameContext InitUser();
+
 #endif
