@@ -174,9 +174,9 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
 
             EOS_Lobby_AttributeData attrData{};
             attrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-            attrData.Key = "BUCKET";
-            attrData.Value.AsUtf8 = "default";
-            attrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
+            attrData.Key = "test";
+            attrData.Value.AsInt64 = 1;
+            attrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
 
             attrOpts.Attribute = &attrData;
             attrOpts.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC;
@@ -242,6 +242,12 @@ void EOSManager::SearchLobbies()
 {
     if (!m_LobbyHandle) return;
 
+    if (m_LocalUserId == nullptr) {
+        std::cout << "UserID未初期化でロビー検索不可\n";
+        return;
+    }
+    std::cout << "[Debug] SearchLobbies LocalUserId is OK: " << (void*)m_LocalUserId << "\n";
+
     EOS_Lobby_CreateLobbySearchOptions opts{};
     opts.ApiVersion = EOS_LOBBY_CREATELOBBYSEARCH_API_LATEST;
     opts.MaxResults = 20;
@@ -252,39 +258,37 @@ void EOSManager::SearchLobbies()
         std::cout << "ロビー検索作成失敗\n";
         return;
     }
-
     m_SearchHandle = searchHandle;
 
-    // --- 検索パラメータ: BUCKET = default (前回の修正通り大文字でOK) ---
     EOS_LobbySearch_SetParameterOptions paramOpts{};
     paramOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
 
     EOS_Lobby_AttributeData attr{};
     attr.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    attr.Key = "BUCKET";
-    attr.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
-    attr.Value.AsUtf8 = "default";
+    attr.Key = "test";
+    attr.ValueType = EOS_ESessionAttributeType::EOS_AT_INT64;
+    attr.Value.AsInt64 = 1;
 
     paramOpts.Parameter = &attr;
     paramOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
-    EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
 
-    // =======================================================
-    // ⬇️ 【代替策】SetLobbyTypeFilter の代わりに SetTargetUserId を追加
-    // 自身をターゲットユーザーとして設定することで、ロビー検索の有効な検索コンテキストを提供します。
-    // =======================================================
+    // ←ここでエラー捕捉
+    EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
+    std::cout << "[Debug] SetParameter return: " << EOS_EResult_ToString(ret) << "\n";
+    if (ret != EOS_EResult::EOS_Success) return;
+
     EOS_LobbySearch_SetTargetUserIdOptions targetOpts{};
     targetOpts.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
-
-    // LocalUserId をターゲットに設定することで、広範囲のロビーを検索する意図を伝えます。
     targetOpts.TargetUserId = m_LocalUserId;
-
-    EOS_LobbySearch_SetTargetUserId(searchHandle, &targetOpts);
-    // =======================================================
+    ret = EOS_LobbySearch_SetTargetUserId(searchHandle, &targetOpts);
+    std::cout << "[Debug] SetTargetUserId return: " << EOS_EResult_ToString(ret) << "\n";
+    if (ret != EOS_EResult::EOS_Success) return;
 
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
     findOpts.LocalUserId = m_LocalUserId;
+
+    std::cout << "[Debug] Find LocalUserId addr: " << (void*)findOpts.LocalUserId << "\n";
 
     EOS_LobbySearch_Find(searchHandle, &findOpts, this, OnLobbySearchFindCompleteStatic);
     std::cout << "ロビー検索要求送信中\n";
