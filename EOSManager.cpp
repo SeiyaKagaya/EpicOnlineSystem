@@ -136,8 +136,11 @@ void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlay
     opts.MaxLobbyMembers = maxPlayers;
     opts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
     opts.bAllowInvites = EOS_TRUE;
-    opts.BucketId = "default";
-    opts.bPresenceEnabled = EOS_TRUE; // 🔹 これでロビーが広告対象になる
+
+    // ⬇️ この行をコメントアウト、または削除します
+    // opts.BucketId = "default"; 
+
+    opts.bPresenceEnabled = EOS_TRUE;
 
     EOS_Lobby_CreateLobby(m_LobbyHandle, &opts, this, OnCreateLobbyCompleteStatic);
     std::cout << "ロビー作成要求送信\n";
@@ -343,6 +346,10 @@ void EOS_CALL EOSManager::OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_
 
         EOS_LobbyDetails_Release(details);
     }
+
+    // ⬇️ 処理の最後に以下を追加
+    EOS_LobbySearch_Release(searchHandle);
+    self->m_SearchHandle = nullptr;
 
     self->m_bLobbySearchComplete = true;
 }
