@@ -137,10 +137,13 @@ void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlay
     opts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
     opts.bAllowInvites = EOS_TRUE;
 
-    // ⬇️ この行をコメントアウト、または削除します
-    // opts.BucketId = "default"; 
-
+    // ⬇️ API要件を満たすため、bPresenceEnabled = TRUE に戻す
     opts.bPresenceEnabled = EOS_TRUE;
+
+    // ⬇️ bPresenceEnabledがTRUEなので、BucketIdが必須。
+    // ただし、検索に使う "bucket" とは *異なる* 値を設定する。
+    // (推奨フォーマット "Key:Value" に従う)
+    opts.BucketId = "GameBucket:Default";
 
     EOS_Lobby_CreateLobby(m_LobbyHandle, &opts, this, OnCreateLobbyCompleteStatic);
     std::cout << "ロビー作成要求送信\n";
