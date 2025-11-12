@@ -266,7 +266,7 @@ void EOSManager::SearchLobbies()
     EOS_Lobby_AttributeData attr{};
     attr.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
     attr.Key = "test";
-    attr.ValueType = EOS_ESessionAttributeType::EOS_AT_INT64;
+    attr.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
     attr.Value.AsInt64 = 1;
 
     paramOpts.Parameter = &attr;
