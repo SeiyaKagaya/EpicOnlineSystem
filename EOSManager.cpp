@@ -258,6 +258,7 @@ void EOSManager::SearchLobbies()
 
     m_SearchHandle = searchHandle;
 
+    // --- 検索パラメータ: BUCKET = default (前回の修正通り大文字でOK) ---
     EOS_LobbySearch_SetParameterOptions paramOpts{};
     paramOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
 
@@ -270,6 +271,19 @@ void EOSManager::SearchLobbies()
     paramOpts.Parameter = &attr;
     paramOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
     EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
+
+    // =======================================================
+    // ⬇️ 【代替策】SetLobbyTypeFilter の代わりに SetTargetUserId を追加
+    // 自身をターゲットユーザーとして設定することで、ロビー検索の有効な検索コンテキストを提供します。
+    // =======================================================
+    EOS_LobbySearch_SetTargetUserIdOptions targetOpts{};
+    targetOpts.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
+
+    // LocalUserId をターゲットに設定することで、広範囲のロビーを検索する意図を伝えます。
+    targetOpts.TargetUserId = m_LocalUserId;
+
+    EOS_LobbySearch_SetTargetUserId(searchHandle, &targetOpts);
+    // =======================================================
 
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
