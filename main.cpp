@@ -3,10 +3,7 @@
 //------------------------------------------------------------
 #include "main.h"
 #include "EOSManager.h"
-#include <thread>
-#include <chrono>
-#include <limits>
-#include <iostream>
+
 
 int main()
 {

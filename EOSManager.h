@@ -5,7 +5,6 @@
 #define _EOSMANAGER_H_
 
 #include "includemanager.h"
-#include <string>
 
 class EOSManager
 {

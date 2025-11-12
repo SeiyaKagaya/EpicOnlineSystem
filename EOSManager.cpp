@@ -1,9 +1,5 @@
 ﻿#include "EOSManager.h"
-#include <iostream>
-#include <thread>
-#include <cstring>
-#include <cctype>
-#include <chrono>
+
 
 EOSManager::EOSManager(const char* productName, const char* productVersion)
     : m_ProductName(productName), m_ProductVersion(productVersion),
@@ -260,19 +256,18 @@ void EOSManager::SearchLobbies()
     }
     m_SearchHandle = searchHandle;
 
+    // これを必ず関数の外に static(もしくはメンバー変数)として持つ:
+    static EOS_Lobby_AttributeData persistentAttr;
+    persistentAttr.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+    persistentAttr.Key = "test";
+    persistentAttr.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
+    persistentAttr.Value.AsInt64 = 1;
+
     EOS_LobbySearch_SetParameterOptions paramOpts{};
     paramOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
-
-    EOS_Lobby_AttributeData attr{};
-    attr.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    attr.Key = "test";
-    attr.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
-    attr.Value.AsInt64 = 1;
-
-    paramOpts.Parameter = &attr;
+    paramOpts.Parameter = &persistentAttr;
     paramOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
 
-    // ←ここでエラー捕捉
     EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
     std::cout << "[Debug] SetParameter return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
