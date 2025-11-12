@@ -156,7 +156,7 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
         std::cout << "ロビー作成成功！ LobbyId = " << data->LobbyId << "\n";
         self->m_bLobbyCreated = true;
 
-        // ✅ ここでロビー属性を即時追加
+        // ✅ ロビー設定変更の準備
         EOS_HLobbyModification mod = nullptr;
         EOS_Lobby_UpdateLobbyModificationOptions modOpts{};
         modOpts.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
@@ -165,7 +165,7 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
 
         if (EOS_Lobby_UpdateLobbyModification(self->m_LobbyHandle, &modOpts, &mod) == EOS_EResult::EOS_Success && mod)
         {
-            // 属性追加
+            // --- 属性追加 ---
             EOS_LobbyModification_AddAttributeOptions attrOpts{};
             attrOpts.ApiVersion = EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST;
 
@@ -179,6 +179,28 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
             attrOpts.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC;
             EOS_LobbyModification_AddAttribute(mod, &attrOpts);
 
+            // --- 🔹 広告設定を明示的に指定 ---
+            EOS_LobbyModification_SetPermissionLevelOptions permOpts{};
+            permOpts.ApiVersion = EOS_LOBBYMODIFICATION_SETPERMISSIONLEVEL_API_LATEST;
+            permOpts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
+            EOS_LobbyModification_SetPermissionLevel(mod, &permOpts);
+
+            // --- 🔹 招待を許可 ---
+            EOS_LobbyModification_SetInvitesAllowedOptions invitesOpts{};
+            invitesOpts.ApiVersion = EOS_LOBBYMODIFICATION_SETINVITESALLOWED_API_LATEST;
+            invitesOpts.bInvitesAllowed = EOS_TRUE;
+            EOS_LobbyModification_SetInvitesAllowed(mod, &invitesOpts);
+
+            // --- 🔹 Presence(広告可視化)を有効化 ---
+            // --- 修正版 ---
+            EOS_LobbyModification_SetAllowedPlatformIdsOptions platformOpts{};
+            platformOpts.ApiVersion = EOS_LOBBYMODIFICATION_SETALLOWEDPLATFORMIDS_API_LATEST;
+            uint32_t platformIds[] = { EOS_OPT_Epic };
+            platformOpts.AllowedPlatformIds = platformIds;
+            platformOpts.AllowedPlatformIdsCount = 1;
+            EOS_LobbyModification_SetAllowedPlatformIds(mod, &platformOpts);
+
+            // ✅ 変更を反映
             EOS_Lobby_UpdateLobbyOptions updateOpts{};
             updateOpts.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
             updateOpts.LobbyModificationHandle = mod;
@@ -187,11 +209,14 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
             EOS_LobbyModification_Release(mod);
         }
 
-        std::cout << "ロビー属性 'bucket=default' 設定完了\n";
+        std::cout << "ロビー属性 'bucket=default' および広告設定完了\n";
     }
     else
+    {
         std::cout << "ロビー作成失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
+    }
 }
+
 
 //==================================================
 // 検索は現状維持
