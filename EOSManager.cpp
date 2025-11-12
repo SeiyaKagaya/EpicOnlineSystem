@@ -232,7 +232,7 @@ void EOS_CALL EOSManager::OnUpdateLobbyCompleteStatic(const EOS_Lobby_UpdateLobb
 }
 
 //==================================================
-// 検索修正案 (BucketId/test属性フィルタリングなし)
+// 最終修正案 (BucketId + カスタム属性 'test=1' 検索)
 //==================================================
 void EOSManager::SearchLobbies()
 {
@@ -254,31 +254,45 @@ void EOSManager::SearchLobbies()
         std::cout << "ロビー検索作成失敗\n";
         return;
     }
+
     m_SearchHandle = searchHandle;
 
-    // ==========================================================
-    // ✅ 必須パラメータ: BucketId検索を再導入する
-    // ==========================================================
+    // --- 1. BucketId 検索 ---
     EOS_Lobby_AttributeData bucketAttrData{};
     bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    bucketAttrData.Key = "BucketId"; // 内部属性キー
+    bucketAttrData.Key = "BucketId";
     bucketAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
-    bucketAttrData.Value.AsUtf8 = "default"; // ホスト側で設定したBucketId
+    bucketAttrData.Value.AsUtf8 = "default";
 
     EOS_LobbySearch_SetParameterOptions bucketParamOpts{};
     bucketParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
     bucketParamOpts.Parameter = &bucketAttrData;
-    bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL; // 完全一致
+    bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
 
-    // ret をここで宣言・初期化
     EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
     std::cout << "[Debug] SetParameter (BucketId) return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
 
-    // EOS_InvalidParameters を回避するため、最低限 BucketId フィルタを設定しました。
-    // ==========================================================
+    // --- 2. カスタム属性 'test=1' 検索を再導入 ---
+    // ホスト側でこの属性を設定しているので、これで絞り込めるはず
+    EOS_Lobby_AttributeData customAttrData{};
+    customAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+    customAttrData.Key = "test";
+    customAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
+    customAttrData.Value.AsInt64 = 1;
+
+    EOS_LobbySearch_SetParameterOptions customParamOpts{};
+    customParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
+    customParamOpts.Parameter = &customAttrData;
+    customParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
+
+    // ret を再利用して結果をチェック
+    ret = EOS_LobbySearch_SetParameter(searchHandle, &customParamOpts);
+    std::cout << "[Debug] SetParameter (test=1) return: " << EOS_EResult_ToString(ret) << "\n";
+    if (ret != EOS_EResult::EOS_Success) return;
 
 
+    // --- 3. 検索の実行 ---
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
     findOpts.LocalUserId = m_LocalUserId;

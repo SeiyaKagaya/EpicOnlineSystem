@@ -21,6 +21,7 @@
 #include "eos_lobby.h"
 #include "eos_lobby_types.h"
 #include "eos_common.h"
+#include "eos_connect.h" // Šù‚É“ü‚Á‚Ä‚¢‚é‚Í‚¸
 //#include "eos_lobby_details.h"
 //#include "eos_lobby_search.h"
 
