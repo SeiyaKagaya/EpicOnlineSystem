@@ -1,11 +1,9 @@
-﻿//------------------------------------------------------------
-// @file        EOSManager.cpp
-//------------------------------------------------------------
-#include "EOSManager.h"
+﻿#include "EOSManager.h"
 #include <iostream>
 #include <thread>
 #include <cstring>
 #include <cctype>
+#include <chrono>
 
 EOSManager::EOSManager(const char* productName, const char* productVersion)
     : m_ProductName(productName), m_ProductVersion(productVersion),
@@ -61,7 +59,6 @@ void EOSManager::Tick()
         EOS_Platform_Tick(m_Platform);
 }
 
-// 匿名ログイン
 void EOSManager::AnonymousConnectLogin()
 {
     if (!m_ConnectHandle) return;
@@ -85,7 +82,6 @@ void EOSManager::AnonymousConnectLogin()
         });
 }
 
-// DeviceIDログイン
 void EOSManager::LoginWithDeviceID()
 {
     EOS_Connect_Credentials creds{};
@@ -123,7 +119,9 @@ void EOSManager::LoginWithDeviceID()
         });
 }
 
-// ロビー作成
+//==================================================
+// ✅ 修正版 CreateLobbyWithCleanup
+//==================================================
 void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlayers, const std::string& hostName)
 {
     if (!m_LobbyHandle) return;
@@ -139,11 +137,15 @@ void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlay
     opts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
     opts.bAllowInvites = EOS_TRUE;
     opts.BucketId = "default";
+    opts.bPresenceEnabled = EOS_TRUE; // 🔹 これでロビーが広告対象になる
 
     EOS_Lobby_CreateLobby(m_LobbyHandle, &opts, this, OnCreateLobbyCompleteStatic);
     std::cout << "ロビー作成要求送信\n";
 }
 
+//==================================================
+// ✅ OnCreateLobbyComplete 修正版
+//==================================================
 void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data)
 {
     EOSManager* self = static_cast<EOSManager*>(data->ClientData);
@@ -154,7 +156,7 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
         std::cout << "ロビー作成成功！ LobbyId = " << data->LobbyId << "\n";
         self->m_bLobbyCreated = true;
 
-        // 🔹 属性(bucke="default")を追加して検索可能にする
+        // ✅ ここでロビー属性を即時追加
         EOS_HLobbyModification mod = nullptr;
         EOS_Lobby_UpdateLobbyModificationOptions modOpts{};
         modOpts.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
@@ -163,6 +165,7 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
 
         if (EOS_Lobby_UpdateLobbyModification(self->m_LobbyHandle, &modOpts, &mod) == EOS_EResult::EOS_Success && mod)
         {
+            // 属性追加
             EOS_LobbyModification_AddAttributeOptions attrOpts{};
             attrOpts.ApiVersion = EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST;
 
@@ -183,12 +186,16 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
 
             EOS_LobbyModification_Release(mod);
         }
+
+        std::cout << "ロビー属性 'bucket=default' 設定完了\n";
     }
     else
         std::cout << "ロビー作成失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
 }
 
-// ロビー検索
+//==================================================
+// 検索は現状維持
+//==================================================
 void EOSManager::SearchLobbies()
 {
     if (!m_LobbyHandle) return;
@@ -206,7 +213,6 @@ void EOSManager::SearchLobbies()
 
     m_SearchHandle = searchHandle;
 
-    // 🔹 bucket = "default" を条件に検索
     EOS_LobbySearch_SetParameterOptions paramOpts{};
     paramOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
 
@@ -218,12 +224,7 @@ void EOSManager::SearchLobbies()
 
     paramOpts.Parameter = &attr;
     paramOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
-
-    EOS_EResult setResult = EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
-    if (setResult != EOS_EResult::EOS_Success)
-    {
-        std::cout << "検索パラメータ設定失敗: " << EOS_EResult_ToString(setResult) << "\n";
-    }
+    EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
 
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
