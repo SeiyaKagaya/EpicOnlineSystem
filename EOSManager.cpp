@@ -232,7 +232,7 @@ void EOS_CALL EOSManager::OnUpdateLobbyCompleteStatic(const EOS_Lobby_UpdateLobb
 }
 
 //==================================================
-// 検索は現状維持
+// 検索修正案
 //==================================================
 void EOSManager::SearchLobbies()
 {
@@ -256,28 +256,39 @@ void EOSManager::SearchLobbies()
     }
     m_SearchHandle = searchHandle;
 
-    // これを必ず関数の外に static(もしくはメンバー変数)として持つ:
-    static EOS_Lobby_AttributeData persistentAttr;
-    persistentAttr.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    persistentAttr.Key = "test";
-    persistentAttr.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
-    persistentAttr.Value.AsInt64 = 1;
+    // --- 1. BucketId を属性として検索に追加 (古いSDKでの方法) ---
+    EOS_Lobby_AttributeData bucketAttrData{};
+    bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+    bucketAttrData.Key = "BucketId"; // EOSの内部属性キー
+    bucketAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
+    bucketAttrData.Value.AsUtf8 = "default"; // ホスト側で設定したBucketId
 
-    EOS_LobbySearch_SetParameterOptions paramOpts{};
-    paramOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
-    paramOpts.Parameter = &persistentAttr;
-    paramOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
+    EOS_LobbySearch_SetParameterOptions bucketParamOpts{};
+    bucketParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
+    bucketParamOpts.Parameter = &bucketAttrData;
+    bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL; // 完全一致
 
-    EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
-    std::cout << "[Debug] SetParameter return: " << EOS_EResult_ToString(ret) << "\n";
+    EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
+    std::cout << "[Debug] SetParameter (BucketId) return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
 
-    EOS_LobbySearch_SetTargetUserIdOptions targetOpts{};
-    targetOpts.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
-    targetOpts.TargetUserId = m_LocalUserId;
-    ret = EOS_LobbySearch_SetTargetUserId(searchHandle, &targetOpts);
-    std::cout << "[Debug] SetTargetUserId return: " << EOS_EResult_ToString(ret) << "\n";
+    // --- 2. 既存のカスタム属性での検索 ---
+    EOS_Lobby_AttributeData customAttrData; // staticを削除し、ローカル変数へ
+    customAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+    customAttrData.Key = "test";
+    customAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
+    customAttrData.Value.AsInt64 = 1;
+
+    EOS_LobbySearch_SetParameterOptions customParamOpts{};
+    customParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
+    customParamOpts.Parameter = &customAttrData;
+    customParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
+
+    ret = EOS_LobbySearch_SetParameter(searchHandle, &customParamOpts);
+    std::cout << "[Debug] SetParameter (test=1) return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
+
+    // --- SetTargetUserId は削除済みの前提 ---
 
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
