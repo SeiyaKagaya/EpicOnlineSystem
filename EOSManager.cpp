@@ -154,7 +154,7 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
     if (data->ResultCode == EOS_EResult::EOS_Success)
     {
         std::cout << "ロビー作成成功！ LobbyId = " << data->LobbyId << "\n";
-        self->m_bLobbyCreated = true;
+        // ⚠️ self->m_bLobbyCreated = true; ⬅️ ここではまだセットしない
 
         // ✅ ロビー設定変更の準備
         EOS_HLobbyModification mod = nullptr;
@@ -191,25 +191,19 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
             invitesOpts.bInvitesAllowed = EOS_TRUE;
             EOS_LobbyModification_SetInvitesAllowed(mod, &invitesOpts);
 
-            // --- 🔹 Presence(広告可視化)を有効化 ---
-            // --- 修正版 ---
-            EOS_LobbyModification_SetAllowedPlatformIdsOptions platformOpts{};
-            platformOpts.ApiVersion = EOS_LOBBYMODIFICATION_SETALLOWEDPLATFORMIDS_API_LATEST;
-            uint32_t platformIds[] = { EOS_OPT_Epic };
-            platformOpts.AllowedPlatformIds = platformIds;
-            platformOpts.AllowedPlatformIdsCount = 1;
-            EOS_LobbyModification_SetAllowedPlatformIds(mod, &platformOpts);
+            // --- ❌ 許可プラットフォームIDの指定は削除する ---
+            // EOS_LobbyModification_SetAllowedPlatformIds(mod, &platformOpts); // 削除
 
-            // ✅ 変更を反映
+            // ✅ 変更を反映 (コールバックを指定)
             EOS_Lobby_UpdateLobbyOptions updateOpts{};
             updateOpts.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
             updateOpts.LobbyModificationHandle = mod;
-            EOS_Lobby_UpdateLobby(self->m_LobbyHandle, &updateOpts, nullptr, nullptr);
+
+            // ⬇️ 新しいコールバックを指定する
+            EOS_Lobby_UpdateLobby(self->m_LobbyHandle, &updateOpts, self, OnUpdateLobbyCompleteStatic);
 
             EOS_LobbyModification_Release(mod);
         }
-
-        std::cout << "ロビー属性 'bucket=default' および広告設定完了\n";
     }
     else
     {
@@ -217,6 +211,26 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
     }
 }
 
+//==================================================
+// ✅ 新しいコールバック関数
+//==================================================
+void EOS_CALL EOSManager::OnUpdateLobbyCompleteStatic(const EOS_Lobby_UpdateLobbyCallbackInfo* data)
+{
+    EOSManager* self = static_cast<EOSManager*>(data->ClientData);
+    if (!self) return;
+
+    if (data->ResultCode == EOS_EResult::EOS_Success)
+    {
+        std::cout << "ロビー属性 'bucket=default' および広告設定完了\n";
+
+        // ⬇️ 属性更新が完了したここでフラグを立てる
+        self->m_bLobbyCreated = true;
+    }
+    else
+    {
+        std::cout << "ロビー属性設定失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
+    }
+}
 
 //==================================================
 // 検索は現状維持

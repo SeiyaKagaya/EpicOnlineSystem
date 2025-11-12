@@ -46,6 +46,10 @@ private:
 
     static void EOS_CALL OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_FindCallbackInfo* data);
     static void EOS_CALL OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data);
+
+    // EOSManager.h にこの宣言を追加（または .cpp の上部）
+    static void EOS_CALL OnUpdateLobbyCompleteStatic(const EOS_Lobby_UpdateLobbyCallbackInfo* data);
+
 };
 
 #endif
