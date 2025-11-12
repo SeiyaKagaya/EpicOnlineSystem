@@ -256,21 +256,21 @@ void EOSManager::SearchLobbies()
     }
     m_SearchHandle = searchHandle;
 
-    // --- 1. BucketId を属性として検索に追加 (古いSDKでの方法) ---
-    EOS_Lobby_AttributeData bucketAttrData{};
-    bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    bucketAttrData.Key = "BucketId"; // EOSの内部属性キー
-    bucketAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
-    bucketAttrData.Value.AsUtf8 = "default"; // ホスト側で設定したBucketId
+    //// --- 1. BucketId を属性として検索に追加 (古いSDKでの方法) ---
+    //EOS_Lobby_AttributeData bucketAttrData{};
+    //bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+    //bucketAttrData.Key = "BucketId"; // EOSの内部属性キー
+    //bucketAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
+    //bucketAttrData.Value.AsUtf8 = "default"; // ホスト側で設定したBucketId
 
-    EOS_LobbySearch_SetParameterOptions bucketParamOpts{};
-    bucketParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
-    bucketParamOpts.Parameter = &bucketAttrData;
-    bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL; // 完全一致
+    //EOS_LobbySearch_SetParameterOptions bucketParamOpts{};
+    //bucketParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
+    //bucketParamOpts.Parameter = &bucketAttrData;
+    //bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL; // 完全一致
 
-    EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
-    std::cout << "[Debug] SetParameter (BucketId) return: " << EOS_EResult_ToString(ret) << "\n";
-    if (ret != EOS_EResult::EOS_Success) return;
+    //EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
+    //std::cout << "[Debug] SetParameter (BucketId) return: " << EOS_EResult_ToString(ret) << "\n";
+    //if (ret != EOS_EResult::EOS_Success) return;
 
     // --- 2. 既存のカスタム属性での検索 ---
     EOS_Lobby_AttributeData customAttrData; // staticを削除し、ローカル変数へ
@@ -284,7 +284,8 @@ void EOSManager::SearchLobbies()
     customParamOpts.Parameter = &customAttrData;
     customParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
 
-    ret = EOS_LobbySearch_SetParameter(searchHandle, &customParamOpts);
+    // BucketIdの ret 宣言を削除したため、ここで再定義
+    EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &customParamOpts);
     std::cout << "[Debug] SetParameter (test=1) return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
 
