@@ -256,7 +256,28 @@ void EOSManager::SearchLobbies()
     }
     m_SearchHandle = searchHandle;
 
-    // ここにロビー検索パラメータの設定（BucketId や test 属性）は一切行いません。
+    // ==========================================================
+    // ✅ 必須パラメータ: BucketId検索を再導入する
+    // ==========================================================
+    EOS_Lobby_AttributeData bucketAttrData{};
+    bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+    bucketAttrData.Key = "BucketId"; // 内部属性キー
+    bucketAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
+    bucketAttrData.Value.AsUtf8 = "default"; // ホスト側で設定したBucketId
+
+    EOS_LobbySearch_SetParameterOptions bucketParamOpts{};
+    bucketParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
+    bucketParamOpts.Parameter = &bucketAttrData;
+    bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL; // 完全一致
+
+    // ret をここで宣言・初期化
+    EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
+    std::cout << "[Debug] SetParameter (BucketId) return: " << EOS_EResult_ToString(ret) << "\n";
+    if (ret != EOS_EResult::EOS_Success) return;
+
+    // EOS_InvalidParameters を回避するため、最低限 BucketId フィルタを設定しました。
+    // ==========================================================
+
 
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
