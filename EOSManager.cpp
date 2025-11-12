@@ -177,7 +177,7 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
 
             EOS_Lobby_AttributeData attrData{};
             attrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-            attrData.Key = "bucket";
+            attrData.Key = "BUCKET";
             attrData.Value.AsUtf8 = "default";
             attrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
 
@@ -263,7 +263,7 @@ void EOSManager::SearchLobbies()
 
     EOS_Lobby_AttributeData attr{};
     attr.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    attr.Key = "bucket";
+    attr.Key = "BUCKET";
     attr.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
     attr.Value.AsUtf8 = "default";
 
