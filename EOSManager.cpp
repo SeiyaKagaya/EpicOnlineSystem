@@ -298,7 +298,32 @@ void EOS_CALL EOSManager::OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_
 
         if (EOS_LobbyDetails_CopyInfo(details, &infoOpts, &info) == EOS_EResult::EOS_Success && info)
         {
+            std::cout << "=== ロビー情報 ===\n";
             std::cout << "ロビーID: " << info->LobbyId << "\n";
+            std::cout << "最大メンバー数: " << info->MaxMembers << "\n";
+            std::cout << "PermissionLevel: " << static_cast<int>(info->PermissionLevel) << "\n";
+
+            // ✅ 最新 SDK に合わせて属性を取得
+            EOS_LobbyDetails_GetAttributeCountOptions attrCountOpts{};
+            attrCountOpts.ApiVersion = EOS_LOBBYDETAILS_GETATTRIBUTECOUNT_API_LATEST;
+            uint32_t attributeCount = EOS_LobbyDetails_GetAttributeCount(details, &attrCountOpts);
+
+            for (uint32_t j = 0; j < attributeCount; ++j)
+            {
+                EOS_Lobby_Attribute* attr = nullptr;
+                EOS_LobbyDetails_CopyAttributeByIndexOptions attrOpts{};
+                attrOpts.ApiVersion = EOS_LOBBYDETAILS_COPYATTRIBUTEBYINDEX_API_LATEST;
+                attrOpts.AttrIndex = j;
+
+                if (EOS_LobbyDetails_CopyAttributeByIndex(details, &attrOpts, &attr) == EOS_EResult::EOS_Success && attr)
+                {
+                    if (attr->Data->ValueType == EOS_ESessionAttributeType::EOS_SAT_String)
+                        std::cout << "属性: " << attr->Data->Key << " = " << attr->Data->Value.AsUtf8 << "\n";
+
+                    EOS_Lobby_Attribute_Release(attr);
+                }
+            }
+
             EOS_LobbyDetails_Info_Release(info);
         }
 
