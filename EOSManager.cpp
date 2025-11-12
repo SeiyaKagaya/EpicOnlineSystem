@@ -137,7 +137,6 @@ void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlay
     opts.LocalUserId = m_LocalUserId;
     opts.MaxLobbyMembers = maxPlayers;
     opts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
-    opts.bPresenceEnabled = EOS_TRUE;
     opts.bAllowInvites = EOS_TRUE;
     opts.BucketId = "default";
 
@@ -154,6 +153,36 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
     {
         std::cout << "ロビー作成成功！ LobbyId = " << data->LobbyId << "\n";
         self->m_bLobbyCreated = true;
+
+        // 🔹 属性(bucke="default")を追加して検索可能にする
+        EOS_HLobbyModification mod = nullptr;
+        EOS_Lobby_UpdateLobbyModificationOptions modOpts{};
+        modOpts.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
+        modOpts.LobbyId = data->LobbyId;
+        modOpts.LocalUserId = self->m_LocalUserId;
+
+        if (EOS_Lobby_UpdateLobbyModification(self->m_LobbyHandle, &modOpts, &mod) == EOS_EResult::EOS_Success && mod)
+        {
+            EOS_LobbyModification_AddAttributeOptions attrOpts{};
+            attrOpts.ApiVersion = EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST;
+
+            EOS_Lobby_AttributeData attrData{};
+            attrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+            attrData.Key = "bucket";
+            attrData.Value.AsUtf8 = "default";
+            attrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
+
+            attrOpts.Attribute = &attrData;
+            attrOpts.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC;
+            EOS_LobbyModification_AddAttribute(mod, &attrOpts);
+
+            EOS_Lobby_UpdateLobbyOptions updateOpts{};
+            updateOpts.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
+            updateOpts.LobbyModificationHandle = mod;
+            EOS_Lobby_UpdateLobby(self->m_LobbyHandle, &updateOpts, nullptr, nullptr);
+
+            EOS_LobbyModification_Release(mod);
+        }
     }
     else
         std::cout << "ロビー作成失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
@@ -177,12 +206,30 @@ void EOSManager::SearchLobbies()
 
     m_SearchHandle = searchHandle;
 
+    // 🔹 bucket = "default" を条件に検索
+    EOS_LobbySearch_SetParameterOptions paramOpts{};
+    paramOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
+
+    EOS_Lobby_AttributeData attr{};
+    attr.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+    attr.Key = "bucket";
+    attr.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
+    attr.Value.AsUtf8 = "default";
+
+    paramOpts.Parameter = &attr;
+    paramOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
+
+    EOS_EResult setResult = EOS_LobbySearch_SetParameter(searchHandle, &paramOpts);
+    if (setResult != EOS_EResult::EOS_Success)
+    {
+        std::cout << "検索パラメータ設定失敗: " << EOS_EResult_ToString(setResult) << "\n";
+    }
+
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
     findOpts.LocalUserId = m_LocalUserId;
 
-    EOS_LobbySearch_Find(m_SearchHandle, &findOpts, this, OnLobbySearchFindCompleteStatic);
-
+    EOS_LobbySearch_Find(searchHandle, &findOpts, this, OnLobbySearchFindCompleteStatic);
     std::cout << "ロビー検索要求送信中\n";
 }
 
@@ -225,7 +272,7 @@ void EOS_CALL EOSManager::OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_
 
         if (EOS_LobbyDetails_CopyInfo(details, &infoOpts, &info) == EOS_EResult::EOS_Success && info)
         {
-            std::cout << "ロビー名: " << info->LobbyId << "\n";
+            std::cout << "ロビーID: " << info->LobbyId << "\n";
             EOS_LobbyDetails_Info_Release(info);
         }
 
