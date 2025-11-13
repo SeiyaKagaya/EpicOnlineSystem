@@ -1,0 +1,30 @@
+[2025.11.13-00.10.39:863] [EOS SDK] Initializing ...
+[2025.11.13-00.10.39:884] [EOS SDK] Initialized. Setting Logging Callback ...
+[2025.11.13-00.10.39:884] [EOS SDK] Logging Callback Set
+[2025.11.13-00.10.39:885] [EOS SDK] LogEOS: Default Network Status: EOS_NS_Online
+[2025.11.13-00.10.39:885] [EOS SDK] LogEOS: [Boot] EOSSDK Version 1.18.1.2-47370208 booting at 2025-11-13T00:10:39.885Z using C
+[2025.11.13-00.10.39:885] [EOS SDK] LogEOS: Encryption key length is 55; encryption keys must be 64 in length to work with data storage
+[2025.11.13-00.10.39:885] [EOS SDK] LogEOSRTC: A background mode has been assigned. BackgroundMode=[LeaveRooms]
+[2025.11.13-00.10.39:887] [EOS SDK] LogEOS: [Boot] EOSSDK Platform Configuration win64-dynamic-x86_64
+[2025.11.13-00.10.39:887] [EOS SDK] LogEOS: [Boot] EOSSDK Platform Properties [OS=Windows/10.0.26100.6713.64bit, ClientId=xyza7891dVcoBtQ9kGUqUJcoQlmVcG9G, ProductId=8febe97d165c4d69bb1190d54172e7b5, SandboxId=26e72d76654947679ecddb972041700c, DeploymentId=f58934a23b394ac1ae85d13ebc7e0c85, ProductName=Your game name, ProductVersion=1.0, IsServer=false, Flags=EnableD3D9Overlay+EnableD3D10Overlay+EnableOpenGLOverlay]
+[2025.11.13-00.10.39:888] [EOS SDK] LogEOSAnalytics: Start Session (User: ...)
+[2025.11.13-00.10.39:888] [EOS SDK] LogEOSOverlay: OverlayPath registry key found in HKCU
+[2025.11.13-00.10.40:234] [EOS SDK] LogEOSOverlay: Overlay library loaded, version ++EOSSDK+Release-Overlay-CL-34031348
+[2025.11.13-00.10.40:234] [EOS SDK] LogEOSOverlay: Beginning dxgi factory detour
+[2025.11.13-00.10.40:234] [EOS SDK] LogEOSOverlay: Factory detour complete
+[2025.11.13-00.10.40:234] [EOS SDK] LogEOSOverlay: Beginning swap chain detour
+[2025.11.13-00.10.40:236] [EOS SDK] LogEOSOverlay: Attempting to create swap chain using D3D11
+[2025.11.13-00.10.40:236] [EOS SDK] LogEOSOverlay: Successfully created swap chain using D3D11 with feature level b000
+[2025.11.13-00.10.40:236] [EOS SDK] LogEOSOverlay: Swapchain detour complete
+[2025.11.13-00.10.40:236] [EOS SDK] LogEOSOverlay: Overlay loaded and initialized
+[2025.11.13-00.10.40:236] [EOS SDK] LogEOSUI: Social Overlay: Configuring intent payload handlers for FSocialOverlayJavascript
+[2025.11.13-00.10.40:237] [EOS SDK] LogEOSUI: Hot key event ignored because there are no known users.
+[2025.11.13-00.10.40:263] [EOS SDK] LogEOSAntiCheat: [AntiCheatClient] Anti-cheat client not available. Verify that the game was started using the anti-cheat bootstrapper if you intend to use it.
+[2025.11.13-00.10.40:263] [EOS SDK] LogEOSRTC: RTCPlatform RTC has been bound to a game thread id: '65412'
+[2025.11.13-00.10.40:263] [EOS SDK] LogEOSRTC: RTCPlatform Initializing SharedLibRtcInstance
+[2025.11.13-00.10.40:263] [EOS SDK] LogEOSRTC: [Core] Initializing LibRTC...
+[2025.11.13-00.10.40:266] [EOS SDK] LogEOSRTC: RTCPlatform InitializeLibRtcSession
+[2025.11.13-00.10.40:266] [EOS SDK] LogEOSRTC: RTCPlatform Creating LibRTC session
+[2025.11.13-00.10.40:347] Direct3D Adapter (0): VID:10DE, PID:2520 - NVIDIA GeForce RTX 3060 Laptop GPU
+
+[2025.11.13-00.10.40:481] AssetDir: C:\Users\student\Desktop\Epic
