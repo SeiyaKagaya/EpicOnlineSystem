@@ -144,6 +144,7 @@ void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlay
 
 //==================================================
 // ✅ OnCreateLobbyComplete 修正版
+// (PermissionLevelの再設定を削除)
 //==================================================
 void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data)
 {
@@ -179,10 +180,13 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
             EOS_LobbyModification_AddAttribute(mod, &attrOpts);
 
             // --- 🔹 広告設定を明示的に指定 ---
+            // ❌ ロビー作成時に設定されているため、更新で再設定するロジックをコメントアウト
+            /*
             EOS_LobbyModification_SetPermissionLevelOptions permOpts{};
             permOpts.ApiVersion = EOS_LOBBYMODIFICATION_SETPERMISSIONLEVEL_API_LATEST;
             permOpts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
             EOS_LobbyModification_SetPermissionLevel(mod, &permOpts);
+            */
 
             // --- 🔹 招待を許可 ---
             EOS_LobbyModification_SetInvitesAllowedOptions invitesOpts{};
@@ -231,8 +235,9 @@ void EOS_CALL EOSManager::OnUpdateLobbyCompleteStatic(const EOS_Lobby_UpdateLobb
     }
 }
 
+
 //==================================================
-// 最終修正案 (BucketId + カスタム属性 'test=1' 検索)
+// 最終修正版 (BucketId のみ検索 + デバッグ出力強化と代替キー)
 //==================================================
 void EOSManager::SearchLobbies()
 {
@@ -257,10 +262,21 @@ void EOSManager::SearchLobbies()
 
     m_SearchHandle = searchHandle;
 
-    // --- 1. BucketId 検索 ---
+    // --- 1. BucketId 検索 (必須) ---
     EOS_Lobby_AttributeData bucketAttrData{};
     bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    bucketAttrData.Key = "BucketId";
+
+    // 💡 修正: 定数が使えなかった場合の代替キー処理
+    const char* bucketKey = EOS_LOBBY_SEARCH_BUCKET_ID;
+    if (bucketKey == nullptr || bucketKey[0] == '\0')
+    {
+        // 定数が無効な場合、小文字の文字列リテラルを試す
+        bucketKey = "bucketid";
+        std::cout << "[Debug] EOS_LOBBY_SEARCH_BUCKET_IDが無効なため、代替キー 'bucketid' を使用\n";
+    }
+
+    bucketAttrData.Key = bucketKey;
+
     bucketAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
     bucketAttrData.Value.AsUtf8 = "default";
 
@@ -270,11 +286,15 @@ void EOSManager::SearchLobbies()
     bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
 
     EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
-    std::cout << "[Debug] SetParameter (BucketId) return: " << EOS_EResult_ToString(ret) << "\n";
+
+    // ⬇️ デバッグ出力を強化して、実際に使われているキーと値を確認
+    std::cout << "[Debug] SetParameter Key: " << bucketAttrData.Key
+        << " Value: " << bucketAttrData.Value.AsUtf8
+        << " return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
 
-    // --- 2. カスタム属性 'test=1' 検索を再導入 ---
-    // ホスト側でこの属性を設定しているので、これで絞り込めるはず
+    // --- 2. カスタム属性 'test=1' 検索を**コメントアウト** (フィルタリングを緩める) ---
+    /*
     EOS_Lobby_AttributeData customAttrData{};
     customAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
     customAttrData.Key = "test";
@@ -290,6 +310,7 @@ void EOSManager::SearchLobbies()
     ret = EOS_LobbySearch_SetParameter(searchHandle, &customParamOpts);
     std::cout << "[Debug] SetParameter (test=1) return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
+    */
 
 
     // --- 3. 検索の実行 ---
