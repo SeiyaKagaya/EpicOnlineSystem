@@ -118,7 +118,6 @@ void EOSManager::LoginWithDeviceID()
 //==================================================
 // ✅ 修正版 CreateLobbyWithCleanup
 //==================================================
-// CreateLobbyWithCleanup — success-sample aligned
 void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlayers, const std::string& hostName)
 {
     if (!m_LobbyHandle) return;
@@ -130,19 +129,17 @@ void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlay
     EOS_Lobby_CreateLobbyOptions opts{};
     opts.ApiVersion = EOS_LOBBY_CREATELOBBY_API_LATEST;
     opts.LocalUserId = m_LocalUserId;
-
-    // success-example values
-    opts.MaxLobbyMembers = (maxPlayers > 0) ? maxPlayers : 10; // success example used 10
+    opts.MaxLobbyMembers = (maxPlayers > 0) ? maxPlayers : 10;
     opts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
-    opts.bAllowInvites = EOS_FALSE;                // success example: false
-    opts.bDisableHostMigration = EOS_FALSE;        // success example: explicit false
-    opts.bPresenceEnabled = EOS_FALSE;             // success example: presence disabled
-    opts.BucketId = "BucketId::BucketId";          // success example bucket id
+    opts.bAllowInvites = EOS_FALSE;
+    opts.bDisableHostMigration = EOS_FALSE;
+    opts.bPresenceEnabled = EOS_FALSE;
+    opts.BucketId = "BucketId::BucketId"; // ✅ 成功例と同じ
 
-    // Note: do NOT immediately call UpdateLobby here. Create only.
     EOS_Lobby_CreateLobby(m_LobbyHandle, &opts, this, OnCreateLobbyCompleteStatic);
     std::cout << "ロビー作成要求送信\n";
 }
+
 
 // OnCreateLobbyCompleteStatic — simplified (mirror success example behavior)
 void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data)
@@ -179,13 +176,7 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
 //==================================================
 void EOSManager::SearchLobbies()
 {
-    if (!m_LobbyHandle) return;
-
-    if (m_LocalUserId == nullptr) {
-        std::cout << "UserID未初期化でロビー検索不可\n";
-        return;
-    }
-    std::cout << "[Debug] SearchLobbies LocalUserId is OK: " << (void*)m_LocalUserId << "\n";
+    if (!m_LobbyHandle || !m_LocalUserId) return;
 
     EOS_Lobby_CreateLobbySearchOptions opts{};
     opts.ApiVersion = EOS_LOBBY_CREATELOBBYSEARCH_API_LATEST;
@@ -193,43 +184,27 @@ void EOSManager::SearchLobbies()
 
     EOS_HLobbySearch searchHandle = nullptr;
     if (EOS_Lobby_CreateLobbySearch(m_LobbyHandle, &opts, &searchHandle) != EOS_EResult::EOS_Success || !searchHandle)
-    {
-        std::cout << "ロビー検索作成失敗\n";
         return;
-    }
 
     m_SearchHandle = searchHandle;
 
-    // --- 1. BucketId 検索 (必須) ---
+    // --- BucketId で絞る場合はホストに合わせる ---
     EOS_Lobby_AttributeData bucketAttrData{};
     bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-
-    // 🔥 公式どおり Key = "bucket"
     bucketAttrData.Key = "bucket";
-
-    // 🔥 ロビー属性型（EOS_AT_STRING）
     bucketAttrData.ValueType = EOS_ELobbyAttributeType::EOS_AT_STRING;
-
-    bucketAttrData.Value.AsUtf8 = "default";
+    bucketAttrData.Value.AsUtf8 = "BucketId"; // ✅ ホストと同じ値
 
     EOS_LobbySearch_SetParameterOptions bucketParamOpts{};
     bucketParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
     bucketParamOpts.Parameter = &bucketAttrData;
     bucketParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
 
-    EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
+    EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
 
-    std::cout << "[Debug] SetParameter Key: " << bucketAttrData.Key
-        << " Value: " << bucketAttrData.Value.AsUtf8
-        << " return: " << EOS_EResult_ToString(ret) << "\n";
-    if (ret != EOS_EResult::EOS_Success) return;
-
-    // --- 3. 検索の実行 ---
     EOS_LobbySearch_FindOptions findOpts{};
     findOpts.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
     findOpts.LocalUserId = m_LocalUserId;
-
-    std::cout << "[Debug] Find LocalUserId addr: " << (void*)findOpts.LocalUserId << "\n";
 
     EOS_LobbySearch_Find(searchHandle, &findOpts, this, OnLobbySearchFindCompleteStatic);
     std::cout << "ロビー検索要求送信中\n";
