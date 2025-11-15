@@ -118,6 +118,7 @@ void EOSManager::LoginWithDeviceID()
 //==================================================
 // ✅ 修正版 CreateLobbyWithCleanup
 //==================================================
+// CreateLobbyWithCleanup — success-sample aligned
 void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlayers, const std::string& hostName)
 {
     if (!m_LobbyHandle) return;
@@ -129,23 +130,21 @@ void EOSManager::CreateLobbyWithCleanup(const std::string& roomName, int maxPlay
     EOS_Lobby_CreateLobbyOptions opts{};
     opts.ApiVersion = EOS_LOBBY_CREATELOBBY_API_LATEST;
     opts.LocalUserId = m_LocalUserId;
-    opts.MaxLobbyMembers = maxPlayers;
+
+    // success-example values
+    opts.MaxLobbyMembers = (maxPlayers > 0) ? maxPlayers : 10; // success example used 10
     opts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
-    opts.bAllowInvites = EOS_TRUE;
+    opts.bAllowInvites = EOS_FALSE;                // success example: false
+    opts.bDisableHostMigration = EOS_FALSE;        // success example: explicit false
+    opts.bPresenceEnabled = EOS_FALSE;             // success example: presence disabled
+    opts.BucketId = "BucketId::BucketId";          // success example bucket id
 
-    // ⬇️ API要件を満たすため、bPresenceEnabled = TRUE に戻す
-    opts.bPresenceEnabled = EOS_TRUE;
-
-    opts.BucketId = "default";
-
+    // Note: do NOT immediately call UpdateLobby here. Create only.
     EOS_Lobby_CreateLobby(m_LobbyHandle, &opts, this, OnCreateLobbyCompleteStatic);
     std::cout << "ロビー作成要求送信\n";
 }
 
-//==================================================
-// ✅ OnCreateLobbyComplete 修正版
-// (PermissionLevelの再設定を削除)
-//==================================================
+// OnCreateLobbyCompleteStatic — simplified (mirror success example behavior)
 void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data)
 {
     EOSManager* self = static_cast<EOSManager*>(data->ClientData);
@@ -154,59 +153,19 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
     if (data->ResultCode == EOS_EResult::EOS_Success)
     {
         std::cout << "ロビー作成成功！ LobbyId = " << data->LobbyId << "\n";
-        // ⚠️ self->m_bLobbyCreated = true; ⬅️ ここではまだセットしない
 
-        // ✅ ロビー設定変更の準備
-        EOS_HLobbyModification mod = nullptr;
-        EOS_Lobby_UpdateLobbyModificationOptions modOpts{};
-        modOpts.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
-        modOpts.LobbyId = data->LobbyId;
-        modOpts.LocalUserId = self->m_LocalUserId;
+        // 保存しておく（後で属性更新や Join 等を行う場合に使う）
+        self->m_CreatedLobbyId = data->LobbyId;
 
-        if (EOS_Lobby_UpdateLobbyModification(self->m_LobbyHandle, &modOpts, &mod) == EOS_EResult::EOS_Success && mod)
-        {
-            // --- 属性追加 ---
-            EOS_LobbyModification_AddAttributeOptions attrOpts{};
-            attrOpts.ApiVersion = EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST;
+        // success-example では Create 完了を待って Lobby オブジェクトを作るフローになっているため、
+        // ここではロビー作成完了フラグを立てる（Update をここで無理に行わない）
+        self->m_bLobbyCreated = true;
 
-            EOS_Lobby_AttributeData attrData{};
-            attrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-            attrData.Key = "test";
-            attrData.Value.AsInt64 = 1;
-            attrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
-
-            attrOpts.Attribute = &attrData;
-            attrOpts.Visibility = EOS_ELobbyAttributeVisibility::EOS_LAT_PUBLIC;
-            EOS_LobbyModification_AddAttribute(mod, &attrOpts);
-
-            // --- 🔹 広告設定を明示的に指定 ---
-            // ❌ ロビー作成時に設定されているため、更新で再設定するロジックをコメントアウト
-            /*
-            EOS_LobbyModification_SetPermissionLevelOptions permOpts{};
-            permOpts.ApiVersion = EOS_LOBBYMODIFICATION_SETPERMISSIONLEVEL_API_LATEST;
-            permOpts.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_PUBLICADVERTISED;
-            EOS_LobbyModification_SetPermissionLevel(mod, &permOpts);
-            */
-
-            // --- 🔹 招待を許可 ---
-            EOS_LobbyModification_SetInvitesAllowedOptions invitesOpts{};
-            invitesOpts.ApiVersion = EOS_LOBBYMODIFICATION_SETINVITESALLOWED_API_LATEST;
-            invitesOpts.bInvitesAllowed = EOS_TRUE;
-            EOS_LobbyModification_SetInvitesAllowed(mod, &invitesOpts);
-
-            // --- ❌ 許可プラットフォームIDの指定は削除する ---
-            // EOS_LobbyModification_SetAllowedPlatformIds(mod, &platformOpts); // 削除
-
-            // ✅ 変更を反映 (コールバックを指定)
-            EOS_Lobby_UpdateLobbyOptions updateOpts{};
-            updateOpts.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
-            updateOpts.LobbyModificationHandle = mod;
-
-            // ⬇️ 新しいコールバックを指定する
-            EOS_Lobby_UpdateLobby(self->m_LobbyHandle, &updateOpts, self, OnUpdateLobbyCompleteStatic);
-
-            EOS_LobbyModification_Release(mod);
-        }
+        // (任意) ここでログ出力を強化して、後続の検証に使う
+        char uidbuf[64]{};
+        int32_t len = sizeof(uidbuf);
+        EOS_ProductUserId_ToString(self->m_LocalUserId, uidbuf, &len);
+        std::cout << "[Debug] Created by LocalUserId=" << uidbuf << "\n";
     }
     else
     {
@@ -214,30 +173,9 @@ void EOS_CALL EOSManager::OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobb
     }
 }
 
-//==================================================
-// ✅ 新しいコールバック関数
-//==================================================
-void EOS_CALL EOSManager::OnUpdateLobbyCompleteStatic(const EOS_Lobby_UpdateLobbyCallbackInfo* data)
-{
-    EOSManager* self = static_cast<EOSManager*>(data->ClientData);
-    if (!self) return;
-
-    if (data->ResultCode == EOS_EResult::EOS_Success)
-    {
-        std::cout << "ロビー属性 'bucket=default' および広告設定完了\n";
-
-        // ⬇️ 属性更新が完了したここでフラグを立てる
-        self->m_bLobbyCreated = true;
-    }
-    else
-    {
-        std::cout << "ロビー属性設定失敗: " << EOS_EResult_ToString(data->ResultCode) << "\n";
-    }
-}
-
 
 //==================================================
-// 最終修正版 (BucketId のみ検索 + デバッグ出力強化と代替キー)
+// 最終修正版 (BucketId のみ検索 + デバッグ出力強化)
 //==================================================
 void EOSManager::SearchLobbies()
 {
@@ -266,18 +204,12 @@ void EOSManager::SearchLobbies()
     EOS_Lobby_AttributeData bucketAttrData{};
     bucketAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
 
-    // 💡 修正: 定数が使えなかった場合の代替キー処理
-    const char* bucketKey = EOS_LOBBY_SEARCH_BUCKET_ID;
-    if (bucketKey == nullptr || bucketKey[0] == '\0')
-    {
-        // 定数が無効な場合、小文字の文字列リテラルを試す
-        bucketKey = "bucketid";
-        std::cout << "[Debug] EOS_LOBBY_SEARCH_BUCKET_IDが無効なため、代替キー 'bucketid' を使用\n";
-    }
+    // 🔥 公式どおり Key = "bucket"
+    bucketAttrData.Key = "bucket";
 
-    bucketAttrData.Key = bucketKey;
+    // 🔥 ロビー属性型（EOS_AT_STRING）
+    bucketAttrData.ValueType = EOS_ELobbyAttributeType::EOS_AT_STRING;
 
-    bucketAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_String;
     bucketAttrData.Value.AsUtf8 = "default";
 
     EOS_LobbySearch_SetParameterOptions bucketParamOpts{};
@@ -287,31 +219,10 @@ void EOSManager::SearchLobbies()
 
     EOS_EResult ret = EOS_LobbySearch_SetParameter(searchHandle, &bucketParamOpts);
 
-    // ⬇️ デバッグ出力を強化して、実際に使われているキーと値を確認
     std::cout << "[Debug] SetParameter Key: " << bucketAttrData.Key
         << " Value: " << bucketAttrData.Value.AsUtf8
         << " return: " << EOS_EResult_ToString(ret) << "\n";
     if (ret != EOS_EResult::EOS_Success) return;
-
-    // --- 2. カスタム属性 'test=1' 検索を**コメントアウト** (フィルタリングを緩める) ---
-    /*
-    EOS_Lobby_AttributeData customAttrData{};
-    customAttrData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-    customAttrData.Key = "test";
-    customAttrData.ValueType = EOS_ESessionAttributeType::EOS_SAT_Int64;
-    customAttrData.Value.AsInt64 = 1;
-
-    EOS_LobbySearch_SetParameterOptions customParamOpts{};
-    customParamOpts.ApiVersion = EOS_LOBBYSEARCH_SETPARAMETER_API_LATEST;
-    customParamOpts.Parameter = &customAttrData;
-    customParamOpts.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
-
-    // ret を再利用して結果をチェック
-    ret = EOS_LobbySearch_SetParameter(searchHandle, &customParamOpts);
-    std::cout << "[Debug] SetParameter (test=1) return: " << EOS_EResult_ToString(ret) << "\n";
-    if (ret != EOS_EResult::EOS_Success) return;
-    */
-
 
     // --- 3. 検索の実行 ---
     EOS_LobbySearch_FindOptions findOpts{};
@@ -368,7 +279,6 @@ void EOS_CALL EOSManager::OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_
             std::cout << "最大メンバー数: " << info->MaxMembers << "\n";
             std::cout << "PermissionLevel: " << static_cast<int>(info->PermissionLevel) << "\n";
 
-            // ✅ 最新 SDK に合わせて属性を取得
             EOS_LobbyDetails_GetAttributeCountOptions attrCountOpts{};
             attrCountOpts.ApiVersion = EOS_LOBBYDETAILS_GETATTRIBUTECOUNT_API_LATEST;
             uint32_t attributeCount = EOS_LobbyDetails_GetAttributeCount(details, &attrCountOpts);
@@ -382,7 +292,7 @@ void EOS_CALL EOSManager::OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_
 
                 if (EOS_LobbyDetails_CopyAttributeByIndex(details, &attrOpts, &attr) == EOS_EResult::EOS_Success && attr)
                 {
-                    if (attr->Data->ValueType == EOS_ESessionAttributeType::EOS_SAT_String)
+                    if (attr->Data->ValueType == EOS_ELobbyAttributeType::EOS_AT_STRING)
                         std::cout << "属性: " << attr->Data->Key << " = " << attr->Data->Value.AsUtf8 << "\n";
 
                     EOS_Lobby_Attribute_Release(attr);
@@ -395,7 +305,6 @@ void EOS_CALL EOSManager::OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_
         EOS_LobbyDetails_Release(details);
     }
 
-    // ⬇️ 処理の最後に以下を追加
     EOS_LobbySearch_Release(searchHandle);
     self->m_SearchHandle = nullptr;
 

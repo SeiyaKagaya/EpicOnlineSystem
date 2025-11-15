@@ -43,6 +43,10 @@ private:
     bool m_bLobbySearchComplete = false;
     EOS_HLobbySearch m_SearchHandle = nullptr;
 
+    // EOSManager.h の private に追加
+    std::string m_CreatedLobbyId;
+
+
     static void EOS_CALL OnLobbySearchFindCompleteStatic(const EOS_LobbySearch_FindCallbackInfo* data);
     static void EOS_CALL OnCreateLobbyCompleteStatic(const EOS_Lobby_CreateLobbyCallbackInfo* data);
 
